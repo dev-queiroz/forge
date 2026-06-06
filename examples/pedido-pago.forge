@@ -1,0 +1,9 @@
+namespace financeiro.pagamentos
+
+contract PedidoPago {
+    pedidoId: uuid
+    valor: decimal
+    cupom?: string
+
+    invariant valor > 0
+}

@@ -1,0 +1,11 @@
+{
+  "projectName": "Forge",
+  "languages": [
+    {
+      "id": "forge",
+      "grammar": "src/forge.langium",
+      "fileExtensions": [".forge"]
+    }
+  ],
+  "out": "src/generated"
+}

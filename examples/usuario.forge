@@ -1,0 +1,6 @@
+namespace financeiro
+
+contract Usuario {
+    id: uuid
+    nome: string
+}

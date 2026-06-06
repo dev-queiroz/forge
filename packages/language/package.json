@@ -1,0 +1,21 @@
+{
+  "name": "@forge/language",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "langium:generate": "langium generate",
+    "build": "pnpm langium:generate && tsc -b",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('src/generated',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "langium": "^4.2.0"
+  },
+  "devDependencies": {
+    "langium-cli": "^4.2.0"
+  }
+}
