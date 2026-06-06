@@ -1,14 +1,49 @@
 # Forge
 
-Forge V0.1 is a small DSL for data contracts. It parses `.forge` files with Langium, converts the AST into a Semantic Model, and generates TypeScript interfaces plus JSON Schema Draft 2020-12 files.
+> Define contracts once. Generate everything.
 
-The V0.1 scope is intentionally limited to:
+Forge is a contract-first language for defining data contracts and generating code artifacts from a single source of truth.
 
-- `namespace`
-- `contract`
-- fields
-- optional fields
-- invariants
+Instead of duplicating the same contract across TypeScript interfaces, validation schemas, API specifications, and other systems, define it once in Forge and generate the artifacts you need.
+
+## Why Forge?
+
+Modern applications often require the same data contract to be maintained in multiple places:
+
+- TypeScript interfaces
+- Validation schemas
+- API specifications
+- Event definitions
+- Backend services
+- Frontend applications
+
+Keeping these definitions synchronized is tedious and error-prone.
+
+Forge aims to solve this by making the contract the source of truth and generating artifacts automatically.
+
+## Current Status
+
+Forge is currently in **v0.1.0**.
+
+Implemented:
+
+- Contract-first DSL
+- Namespace support
+- Contracts
+- Optional fields
+- Invariants
+- Langium-based parser
+- Semantic Model architecture
+- TypeScript generator
+- JSON Schema Draft 2020-12 generator
+- CLI tooling
+
+Planned:
+
+- Zod generator
+- OpenAPI generator
+- Improved diagnostics
+- VS Code extension
 
 ## Installation
 
@@ -25,7 +60,13 @@ Initialize a Forge project:
 pnpm forge init
 ```
 
-Create contracts under `contracts/**/*.forge`, then compile:
+Create contracts under:
+
+```text
+contracts/**/*.forge
+```
+
+Compile all contracts:
 
 ```bash
 pnpm forge compile
@@ -35,13 +76,13 @@ Generated files are written to:
 
 ```text
 generated/
-  typescript/
-  json-schema/
+├── typescript/
+└── json-schema/
 ```
 
 ## Example
 
-Input:
+### Input
 
 ```forge
 namespace financeiro
@@ -49,17 +90,23 @@ namespace financeiro
 contract Usuario {
     id: uuid
     nome: string
+    email?: string
+
+    invariant id != ""
 }
 ```
 
-Output:
+### Generated TypeScript
 
 ```ts
 export interface Usuario {
   id: string;
   nome: string;
+  email?: string;
 }
 ```
+
+### Generated JSON Schema
 
 ```json
 {
@@ -72,6 +119,9 @@ export interface Usuario {
     },
     "nome": {
       "type": "string"
+    },
+    "email": {
+      "type": "string"
     }
   },
   "required": [
@@ -81,23 +131,134 @@ export interface Usuario {
 }
 ```
 
-## Development
+## Language Overview
 
-Monorepo packages:
+### Namespace
 
-- `packages/language`: Langium grammar, parser, AST access, validations, Semantic Model, and `createContractId`.
-- `packages/generators`: TypeScript and JSON Schema generators. Generators consume only the Semantic Model.
-- `packages/cli`: `forge init` and `forge compile`.
-
-Build all packages:
-
-```bash
-pnpm build
+```forge
+namespace financeiro.pagamentos
 ```
 
-Run the CLI through the workspace script:
+### Contract
 
-```bash
-pnpm forge init
-pnpm forge compile
+```forge
+contract PedidoPago {
+    pedidoId: uuid
+    valor: decimal
+}
 ```
+
+### Optional Fields
+
+```forge
+cupom?: string
+```
+
+### Invariants
+
+```forge
+invariant valor > 0
+```
+
+## Supported Types
+
+| Forge Type | TypeScript |
+|------------|------------|
+| string | string |
+| int | number |
+| float | number |
+| decimal | number |
+| boolean | boolean |
+| uuid | string |
+| datetime | string |
+| date | string |
+
+## Architecture
+
+Forge follows a layered architecture:
+
+```text
+Forge Source
+     ↓
+Parser
+     ↓
+AST
+     ↓
+Semantic Model
+     ↓
+Generators
+     ↓
+Artifacts
+```
+
+Current generators:
+
+- TypeScript
+- JSON Schema
+
+Generators consume only the Semantic Model, making it possible to add new targets without changing the parser or language definition.
+
+## Monorepo Structure
+
+```text
+packages/
+├── cli/
+├── generators/
+└── language/
+
+examples/
+```
+
+### packages/language
+
+Contains:
+
+- Langium grammar
+- Parser
+- AST access
+- Semantic Model
+- Validations
+- createContractId
+
+### packages/generators
+
+Contains:
+
+- TypeScript generator
+- JSON Schema generator
+
+### packages/cli
+
+Contains:
+
+- forge init
+- forge compile
+
+## Roadmap
+
+### v0.2
+
+- Zod generator
+- Better diagnostics
+
+### v0.3
+
+- OpenAPI generation
+- Enhanced validation support
+
+### Future Exploration
+
+- Event contracts
+- API contracts
+- Contract governance
+- Additional language targets
+
+## Contributing
+
+Contributions, feedback, and discussions are welcome.
+
+If you find a bug or have an idea for improving Forge, please open an issue.
+
+## License
+
+[Apache License 2.0](https://github.com/dev-queiroz/forge/blob/main/LICENSE)
