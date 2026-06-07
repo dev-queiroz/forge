@@ -1,6 +1,9 @@
-contract Product {
+contract User {
   id: uuid
-  price: float
-  active: boolean
-  createdAt: datetime
+  name: string
+}
+
+contract Order {
+  id: uuid
+  total: decimal
 }

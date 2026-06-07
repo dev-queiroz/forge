@@ -5,7 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import fg from 'fast-glob';
-import { generateAll, generateOpenApi } from '@forge/generators';
+import { generateAll, generateOpenApi, generateNest, writeNestProject } from '@forge/generators';
 import { parseForgeToSemanticModel, DiagnosticsError, type SemanticModel } from '@forge/language';
 
 async function main(): Promise<void> {
@@ -23,6 +23,11 @@ async function main(): Promise<void> {
 
   if (command === 'generate' && process.argv[3] === 'openapi') {
     await generateOpenApiCmd(process.cwd());
+    return;
+  }
+
+  if (command === 'generate' && process.argv[3] === 'nest') {
+    await generateNestCmd(process.cwd());
     return;
   }
 
@@ -63,12 +68,18 @@ async function compile(root: string): Promise<void> {
   }
 
   const hasEmitOpenApi = process.argv.includes('--emit') && process.argv.includes('openapi');
+  const hasEmitNest = process.argv.includes('--emit') && process.argv.includes('nest');
+
   if (hasEmitOpenApi) {
     const openapiContent = generateOpenApi(model);
     const target = path.join(root, 'dist', 'openapi.json');
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, openapiContent, 'utf8');
     console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s) and OpenAPI spec at dist/openapi.json.`);
+  } else if (hasEmitNest) {
+    const nestFiles = generateNest(model);
+    await writeNestProject(path.join(root, 'dist', 'backend'), nestFiles);
+    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s) and NestJS project at dist/backend.`);
   } else {
     console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s).`);
   }
@@ -93,6 +104,25 @@ async function generateOpenApiCmd(root: string): Promise<void> {
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, openapiContent, 'utf8');
   console.log(`Generated OpenAPI spec at dist/openapi.json.`);
+}
+
+async function generateNestCmd(root: string): Promise<void> {
+  const config = await readConfig(root);
+  const files = await fg(config.contracts, { cwd: root, absolute: true, onlyFiles: true });
+  const models: SemanticModel[] = [];
+
+  for (const file of files) {
+    const source = await readFile(file, 'utf8');
+    models.push(await parseForgeToSemanticModel(source, { uri: pathToFileUri(file) }));
+  }
+
+  const model: SemanticModel = {
+    contracts: models.flatMap(item => item.contracts)
+  };
+
+  const nestFiles = generateNest(model);
+  await writeNestProject(path.join(root, 'dist', 'backend'), nestFiles);
+  console.log(`Generated NestJS project at dist/backend.`);
 }
 
 async function readConfig(root: string): Promise<{ contracts: string; output: string }> {
@@ -123,7 +153,7 @@ function pathToFileUri(filePath: string): string {
 }
 
 function printUsage(): void {
-  console.log('Usage: forge <init|compile|generate openapi> [--emit openapi]');
+  console.log('Usage: forge <init|compile|generate openapi|generate nest> [--emit openapi|--emit nest]');
 }
 
 main().catch(error => {
