@@ -5,7 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import fg from 'fast-glob';
-import { generateAll } from '@forge/generators';
+import { generateAll, generateOpenApi } from '@forge/generators';
 import { parseForgeToSemanticModel, DiagnosticsError, type SemanticModel } from '@forge/language';
 
 async function main(): Promise<void> {
@@ -18,6 +18,11 @@ async function main(): Promise<void> {
 
   if (command === 'compile') {
     await compile(process.cwd());
+    return;
+  }
+
+  if (command === 'generate' && process.argv[3] === 'openapi') {
+    await generateOpenApiCmd(process.cwd());
     return;
   }
 
@@ -57,7 +62,37 @@ async function compile(root: string): Promise<void> {
     await writeFile(target, file.content, 'utf8');
   }
 
-  console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s).`);
+  const hasEmitOpenApi = process.argv.includes('--emit') && process.argv.includes('openapi');
+  if (hasEmitOpenApi) {
+    const openapiContent = generateOpenApi(model);
+    const target = path.join(root, 'dist', 'openapi.json');
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, openapiContent, 'utf8');
+    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s) and OpenAPI spec at dist/openapi.json.`);
+  } else {
+    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s).`);
+  }
+}
+
+async function generateOpenApiCmd(root: string): Promise<void> {
+  const config = await readConfig(root);
+  const files = await fg(config.contracts, { cwd: root, absolute: true, onlyFiles: true });
+  const models: SemanticModel[] = [];
+
+  for (const file of files) {
+    const source = await readFile(file, 'utf8');
+    models.push(await parseForgeToSemanticModel(source, { uri: pathToFileUri(file) }));
+  }
+
+  const model: SemanticModel = {
+    contracts: models.flatMap(item => item.contracts)
+  };
+
+  const openapiContent = generateOpenApi(model);
+  const target = path.join(root, 'dist', 'openapi.json');
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, openapiContent, 'utf8');
+  console.log(`Generated OpenAPI spec at dist/openapi.json.`);
 }
 
 async function readConfig(root: string): Promise<{ contracts: string; output: string }> {
@@ -88,7 +123,7 @@ function pathToFileUri(filePath: string): string {
 }
 
 function printUsage(): void {
-  console.log('Usage: forge <init|compile>');
+  console.log('Usage: forge <init|compile|generate openapi> [--emit openapi]');
 }
 
 main().catch(error => {

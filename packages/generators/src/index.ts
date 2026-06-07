@@ -1,4 +1,7 @@
 import type { ContractModel, FieldModel, SemanticModel } from '@forge/language';
+import { generateOpenApi } from './openapi/generator.js';
+
+export { generateOpenApi };
 
 const tsTypeMap: Record<string, string> = {
   uuid: 'string',

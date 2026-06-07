@@ -1,3 +1,6 @@
-contract Order {
-  value: money
+contract Product {
+  id: uuid
+  price: float
+  active: boolean
+  createdAt: datetime
 }
