@@ -22,7 +22,7 @@ Invariant:
     'invariant' left=ID operator=ComparisonOperator right=InvariantValue;
 
 PrimitiveType returns string:
-    'string' | 'int' | 'float' | 'decimal' | 'boolean' | 'uuid' | 'datetime' | 'date';
+    ID;
 
 ComparisonOperator returns string:
     '>=' | '<=' | '==' | '!=' | '>' | '<';

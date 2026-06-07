@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import fg from 'fast-glob';
 import { generateAll } from '@forge/generators';
-import { parseForgeToSemanticModel, type SemanticModel } from '@forge/language';
+import { parseForgeToSemanticModel, DiagnosticsError, type SemanticModel } from '@forge/language';
 
 async function main(): Promise<void> {
   const command = process.argv[2];
@@ -92,6 +92,16 @@ function printUsage(): void {
 }
 
 main().catch(error => {
-  console.error(error instanceof Error ? error.message : error);
+  if (error instanceof DiagnosticsError) {
+    for (const d of error.diagnostics) {
+      console.error(`${d.file ?? ""}:${d.line ?? ""}:${d.column ?? ""}\n`);
+      console.error(d.message + '\n');
+      if (d.hint) {
+        console.error(`Hint:\n${d.hint}\n`);
+      }
+    }
+  } else {
+    console.error(error instanceof Error ? error.message : error);
+  }
   process.exitCode = 1;
 });
