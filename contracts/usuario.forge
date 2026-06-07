@@ -1,0 +1,15 @@
+namespace usuarios
+
+contract Usuario {
+    id: uuid
+    nome: string
+    email?: string
+    idade: int
+    ativo: boolean
+}
+
+contract Pedido {
+    id: uuid
+    valor: decimal
+    criadoEm: datetime
+}

@@ -6,7 +6,11 @@
   "scripts": {
     "build": "pnpm --filter @forge/language build && pnpm --filter @forge/generators build && pnpm --filter @forge/cli build",
     "forge": "node packages/cli/dist/index.js",
+    "test": "pnpm build && node --test tests/*.test.mjs",
     "clean": "pnpm --filter './packages/*' clean"
+  },
+  "dependencies": {
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

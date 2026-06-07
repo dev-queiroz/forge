@@ -50,13 +50,14 @@ async function compile(root: string): Promise<void> {
   };
 
   const outputRoot = path.join(root, config.output);
-  for (const file of generateAll(model)) {
+  const generatedFiles = generateAll(model);
+  for (const file of generatedFiles) {
     const target = path.join(outputRoot, file.path);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, file.content, 'utf8');
   }
 
-  console.log(`Compiled ${files.length} Forge file(s), generated ${generateAll(model).length} file(s).`);
+  console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s).`);
 }
 
 async function readConfig(root: string): Promise<{ contracts: string; output: string }> {

@@ -4,23 +4,6 @@
 
 Forge is a contract-first language for defining data contracts and generating code artifacts from a single source of truth.
 
-Instead of duplicating the same contract across TypeScript interfaces, validation schemas, API specifications, and other systems, define it once in Forge and generate the artifacts you need.
-
-## Why Forge?
-
-Modern applications often require the same data contract to be maintained in multiple places:
-
-- TypeScript interfaces
-- Validation schemas
-- API specifications
-- Event definitions
-- Backend services
-- Frontend applications
-
-Keeping these definitions synchronized is tedious and error-prone.
-
-Forge aims to solve this by making the contract the source of truth and generating artifacts automatically.
-
 ## Current Status
 
 Forge is currently in **v0.1.0**.
@@ -36,11 +19,11 @@ Implemented:
 - Semantic Model architecture
 - TypeScript generator
 - JSON Schema Draft 2020-12 generator
+- Zod generator
 - CLI tooling
 
 Planned:
 
-- Zod generator
 - OpenAPI generator
 - Improved diagnostics
 - VS Code extension
@@ -51,6 +34,8 @@ Planned:
 pnpm install
 pnpm build
 ```
+
+The generated Zod artifacts import `zod`, which is included as a project dependency.
 
 ## Usage
 
@@ -76,8 +61,9 @@ Generated files are written to:
 
 ```text
 generated/
-├── typescript/
-└── json-schema/
+|-- typescript/
+|-- json-schema/
+`-- zod/
 ```
 
 ## Example
@@ -131,6 +117,20 @@ export interface Usuario {
 }
 ```
 
+### Generated Zod Schema
+
+```ts
+import { z } from "zod";
+
+export const UsuarioSchema = z.object({
+  id: z.string(),
+  nome: z.string(),
+  email: z.string().optional(),
+});
+
+export type Usuario = z.infer<typeof UsuarioSchema>;
+```
+
 ## Language Overview
 
 ### Namespace
@@ -160,18 +160,20 @@ cupom?: string
 invariant valor > 0
 ```
 
+Invariants are parsed and kept in the Semantic Model. Zod invariant validation is not generated yet.
+
 ## Supported Types
 
-| Forge Type | TypeScript |
-|------------|------------|
-| string | string |
-| int | number |
-| float | number |
-| decimal | number |
-| boolean | boolean |
-| uuid | string |
-| datetime | string |
-| date | string |
+| Forge Type | TypeScript | JSON Schema | Zod |
+|------------|------------|-------------|-----|
+| string | string | string | z.string() |
+| int | number | number | z.number().int() |
+| float | number | number | z.number() |
+| decimal | number | number | z.number() |
+| boolean | boolean | boolean | z.boolean() |
+| uuid | string | string | z.string() |
+| datetime | string | string | z.string() |
+| date | string | string | z.string() |
 
 ## Architecture
 
@@ -179,15 +181,15 @@ Forge follows a layered architecture:
 
 ```text
 Forge Source
-     ↓
+     |
 Parser
-     ↓
+     |
 AST
-     ↓
+     |
 Semantic Model
-     ↓
+     |
 Generators
-     ↓
+     |
 Artifacts
 ```
 
@@ -195,6 +197,7 @@ Current generators:
 
 - TypeScript
 - JSON Schema
+- Zod
 
 Generators consume only the Semantic Model, making it possible to add new targets without changing the parser or language definition.
 
@@ -202,9 +205,9 @@ Generators consume only the Semantic Model, making it possible to add new target
 
 ```text
 packages/
-├── cli/
-├── generators/
-└── language/
+|-- cli/
+|-- generators/
+`-- language/
 
 examples/
 ```
@@ -226,6 +229,7 @@ Contains:
 
 - TypeScript generator
 - JSON Schema generator
+- Zod generator
 
 ### packages/cli
 
@@ -234,11 +238,24 @@ Contains:
 - forge init
 - forge compile
 
+## Development
+
+Run all tests:
+
+```bash
+pnpm test
+```
+
+Build all packages:
+
+```bash
+pnpm build
+```
+
 ## Roadmap
 
 ### v0.2
 
-- Zod generator
 - Better diagnostics
 
 ### v0.3
@@ -248,16 +265,7 @@ Contains:
 
 ### Future Exploration
 
-- Event contracts
-- API contracts
-- Contract governance
 - Additional language targets
-
-## Contributing
-
-Contributions, feedback, and discussions are welcome.
-
-If you find a bug or have an idea for improving Forge, please open an issue.
 
 ## License
 

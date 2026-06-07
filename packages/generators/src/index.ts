@@ -22,6 +22,17 @@ const jsonSchemaTypeMap: Record<string, string> = {
   decimal: 'number'
 };
 
+const zodTypeMap: Record<string, string> = {
+  string: 'z.string()',
+  uuid: 'z.string()',
+  int: 'z.number().int()',
+  float: 'z.number()',
+  decimal: 'z.number()',
+  boolean: 'z.boolean()',
+  datetime: 'z.string()',
+  date: 'z.string()'
+};
+
 export interface GeneratedFile {
   path: string;
   content: string;
@@ -41,8 +52,21 @@ export function generateJsonSchema(model: SemanticModel): GeneratedFile[] {
   }));
 }
 
+export class ZodGenerator {
+  generate(model: SemanticModel): GeneratedFile[] {
+    return model.contracts.map(contract => ({
+      path: `zod/${contract.name}.ts`,
+      content: renderZodContract(contract)
+    }));
+  }
+}
+
+export function generateZod(model: SemanticModel): GeneratedFile[] {
+  return new ZodGenerator().generate(model);
+}
+
 export function generateAll(model: SemanticModel): GeneratedFile[] {
-  return [...generateTypeScript(model), ...generateJsonSchema(model)];
+  return [...generateTypeScript(model), ...generateJsonSchema(model), ...generateZod(model)];
 }
 
 function renderTypeScriptContract(contract: ContractModel): string {
@@ -74,4 +98,26 @@ function toJsonSchema(contract: ContractModel): object {
     properties,
     required: contract.fields.filter(field => !field.optional).map(field => field.name)
   };
+}
+
+function renderZodContract(contract: ContractModel): string {
+  const fields = contract.fields
+    .map(field => `  ${field.name}: ${toZodType(field)},`)
+    .join('\n');
+
+  return [
+    'import { z } from "zod";',
+    '',
+    `export const ${contract.name}Schema = z.object({`,
+    fields,
+    '});',
+    '',
+    `export type ${contract.name} = z.infer<typeof ${contract.name}Schema>;`,
+    ''
+  ].join('\n');
+}
+
+function toZodType(field: FieldModel): string {
+  const baseType = zodTypeMap[field.type] ?? 'z.unknown()';
+  return field.optional ? `${baseType}.optional()` : baseType;
 }
