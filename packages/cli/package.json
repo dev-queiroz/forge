@@ -15,6 +15,7 @@
   "dependencies": {
     "@forge/generators": "workspace:*",
     "@forge/language": "workspace:*",
+    "@forge/compiler": "workspace:*",
     "fast-glob": "^3.3.3"
   }
 }

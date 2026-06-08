@@ -21,6 +21,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@forge/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@forge/generators':
         specifier: workspace:*
         version: link:../generators

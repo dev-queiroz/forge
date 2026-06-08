@@ -7,7 +7,8 @@
   },
   "references": [
     { "path": "../language" },
-    { "path": "../generators" }
+    { "path": "../generators" },
+    { "path": "../compiler" }
   ],
   "include": ["src/**/*.ts"]
 }

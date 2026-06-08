@@ -5,8 +5,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import fg from 'fast-glob';
-import { generateAll, generateOpenApi, generateNest, writeNestProject } from '@forge/generators';
+import { generateAll, generateOpenApi, generateNest, writeNestProject, generatePrisma } from '@forge/generators';
 import { parseForgeToSemanticModel, DiagnosticsError, type SemanticModel } from '@forge/language';
+import { DatabaseSchemaBuilder } from '@forge/compiler';
 
 async function main(): Promise<void> {
   const command = process.argv[2];
@@ -67,6 +68,16 @@ async function compile(root: string): Promise<void> {
     await writeFile(target, file.content, 'utf8');
   }
 
+  // Generate Prisma schema from DatabaseSchema IR
+  const dbSchemaBuilder = new DatabaseSchemaBuilder();
+  const dbSchema = dbSchemaBuilder.build(model);
+  const prismaFiles = generatePrisma(dbSchema);
+  for (const file of prismaFiles) {
+    const target = path.join(outputRoot, file.path);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, file.content, 'utf8');
+  }
+
   const hasEmitOpenApi = process.argv.includes('--emit') && process.argv.includes('openapi');
   const hasEmitNest = process.argv.includes('--emit') && process.argv.includes('nest');
 
@@ -75,13 +86,13 @@ async function compile(root: string): Promise<void> {
     const target = path.join(root, 'dist', 'openapi.json');
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, openapiContent, 'utf8');
-    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s) and OpenAPI spec at dist/openapi.json.`);
+    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s), Prisma schema, and OpenAPI spec at dist/openapi.json.`);
   } else if (hasEmitNest) {
     const nestFiles = generateNest(model);
     await writeNestProject(path.join(root, 'dist', 'backend'), nestFiles);
-    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s) and NestJS project at dist/backend.`);
+    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s), Prisma schema, and NestJS project at dist/backend.`);
   } else {
-    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s).`);
+    console.log(`Compiled ${files.length} Forge file(s), generated ${generatedFiles.length} file(s) and Prisma schema.`);
   }
 }
 
