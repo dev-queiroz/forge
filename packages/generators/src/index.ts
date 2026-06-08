@@ -2,8 +2,9 @@ import type { ContractModel, FieldModel, SemanticModel } from '@forge/language';
 import { generateOpenApi } from './openapi/generator.js';
 import { generateNest } from './nest/generator.js';
 import { writeNestProject } from './nest/writer.js';
+import { generatePrisma } from './prisma/generator.js';
 
-export { generateOpenApi, generateNest, writeNestProject };
+export { generateOpenApi, generateNest, writeNestProject, generatePrisma };
 
 const tsTypeMap: Record<string, string> = {
   uuid: 'string',

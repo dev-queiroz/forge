@@ -1,9 +1,14 @@
+namespace financeiro
+
 contract User {
   id: uuid
   name: string
+  idade: int
 }
 
-contract Order {
+contract Store {
   id: uuid
-  total: decimal
+  nome: string
+  cnpj: string
+  descricao: string
 }

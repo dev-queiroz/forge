@@ -31,8 +31,17 @@ importers:
         specifier: ^3.3.3
         version: 3.3.3
 
+  packages/compiler:
+    dependencies:
+      '@forge/language':
+        specifier: workspace:*
+        version: link:../language
+
   packages/generators:
     dependencies:
+      '@forge/compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@forge/language':
         specifier: workspace:*
         version: link:../language

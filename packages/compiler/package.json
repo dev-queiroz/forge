@@ -1,5 +1,5 @@
 {
-  "name": "@forge/generators",
+  "name": "@forge/compiler",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,6 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@forge/language": "workspace:*",
-    "@forge/compiler": "workspace:*"
+    "@forge/language": "workspace:*"
   }
 }
