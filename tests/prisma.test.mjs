@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { generatePrisma } from '../packages/generators/dist/prisma/index.js';
+import { generatePrisma } from '../packages/generators/generated/prisma/index.js';
 import { DatabaseSchemaBuilder } from '../packages/compiler/dist/index.js';
 import { toSemanticModel } from '../packages/language/dist/index.js';
 

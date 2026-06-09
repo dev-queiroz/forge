@@ -2,14 +2,15 @@
   "name": "@forge/generators",
   "version": "0.1.0",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "generated/index.js",
+  "types": "generated/index.d.ts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./generated/index.js",
+    "./prisma": "./generated/prisma/index.js"
   },
   "scripts": {
     "build": "tsc -b",
-    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\""
+    "clean": "node -e \"fs.rmSync('generated',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@forge/language": "workspace:*",
