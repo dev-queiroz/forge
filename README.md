@@ -22,9 +22,9 @@ cd my-app
 forge compile
 ```
 
-## 📋 Status: v1.0.0-rc.1
+## 📋 Status: v1.0.0
 
-Forge is in **Release Candidate** status. The core language, compiler, and generators are production-ready.
+Forge 1.0.0 is the **stable release** with production-ready language, compiler, and code generators. All core features are complete and tested.
 
 ### ✅ Implemented
 
