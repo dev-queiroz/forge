@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist",
+    "outDir": "generated",
     "composite": true
   },
-  "references": [{ "path": "../language" }],
+  "references": [{ "path": "../language" }, { "path": "../compiler" }],
   "include": ["src/**/*.ts"]
 }

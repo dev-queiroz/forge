@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { generateOpenApi } from '../packages/generators/dist/index.js';
+import { generateOpenApi } from '../packages/generators/generated/index.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cliPath = path.join(repoRoot, 'packages', 'cli', 'dist', 'index.js');

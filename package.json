@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @forge/language build && pnpm --filter @forge/generators build && pnpm --filter @forge/cli build",
+    "build": "pnpm --filter @forge/language build && pnpm --filter @forge/compiler build && pnpm --filter @forge/generators build && pnpm --filter @forge/cli build",
     "forge": "node packages/cli/dist/index.js",
     "test": "pnpm build && node --test tests/*.test.mjs",
     "clean": "pnpm --filter './packages/*' clean"

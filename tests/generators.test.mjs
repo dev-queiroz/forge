@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { generateZod } from '../packages/generators/dist/index.js';
+import { generateZod } from '../packages/generators/generated/index.js';
 
 const allTypesModel = {
   contracts: [

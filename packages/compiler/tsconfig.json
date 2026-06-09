@@ -5,10 +5,6 @@
     "outDir": "dist",
     "composite": true
   },
-  "references": [
-    { "path": "../language" },
-    { "path": "../generators" },
-    { "path": "../compiler" }
-  ],
+  "references": [{ "path": "../language" }],
   "include": ["src/**/*.ts"]
 }

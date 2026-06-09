@@ -1,6 +1,14 @@
-contract Product {
+namespace financeiro
+
+contract User {
   id: uuid
-  price: float
-  active: boolean
-  createdAt: datetime
+  name: string
+  idade: int
+}
+
+contract Store {
+  id: uuid
+  nome: string
+  cnpj: string
+  descricao: string
 }
