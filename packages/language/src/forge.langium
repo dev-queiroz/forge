@@ -1,11 +1,18 @@
 grammar Forge
 
 entry Model:
+    imports+=ImportDeclaration*
     namespace=NamespaceDeclaration?
-    contracts+=Contract*;
+    elements+=ModelElement*;
+
+ImportDeclaration:
+    'import' importedNamespace=QualifiedName ('.' '{' names+=ID (',' names+=ID)* '}')?;
 
 NamespaceDeclaration:
     'namespace' name=QualifiedName;
+
+ModelElement:
+    Contract | Enum | Command | Event;
 
 Contract:
     'contract' name=ID '{'
@@ -13,22 +20,75 @@ Contract:
     '}';
 
 ContractMember:
-    Field | Invariant;
+    Field | Invariant | Relationship;
 
 Field:
-    name=ID optional=('?')? ':' type=PrimitiveType;
+    name=ID optional=('?')? ':' type=FieldType modifiers+=FieldModifier*;
 
-Invariant:
-    'invariant' left=ID operator=ComparisonOperator right=InvariantValue;
+FieldModifier:
+    '@' name=ID ('(' value=STRING ')')?;
+
+FieldType:
+    baseType=TypeReference arrayMarker=('[]')? optional=('?')?;
+
+TypeReference:
+    PrimitiveTypeRef | ComplexTypeRef;
+
+PrimitiveTypeRef:
+    type=PrimitiveType;
+
+ComplexTypeRef:
+    name=ID ('<' typeArgs+=TypeReference (',' typeArgs+=TypeReference)* '>')?;
 
 PrimitiveType returns string:
-    ID;
+    'string' | 'int' | 'float' | 'decimal' | 'boolean' | 'uuid' | 'datetime' | 'date' | 'bytes' | 'json';
 
-ComparisonOperator returns string:
-    '>=' | '<=' | '==' | '!=' | '>' | '<';
+Invariant:
+    'invariant' name=ID '{'
+        expression+=InvariantExpression*
+    '}' | 'invariant' expression+=InvariantExpression;
+
+InvariantExpression:
+    left=InvariantValue operator=ComparisonOperator right=InvariantValue;
 
 InvariantValue returns string:
-    NUMBER | STRING | BOOLEAN | ID;
+    ID | STRING | NUMBER | BOOLEAN;
+
+ComparisonOperator returns string:
+    '==' | '!=' | '>' | '<' | '>=' | '<=';
+
+Relationship:
+    'relationship' sourceType=ID '-' relationshipType=RelationType '-' targetType=ID;
+
+RelationType returns string:
+    '1:1' | '1:N' | 'N:M' | 'M:N';
+
+Enum:
+    'enum' name=ID '{'
+        values+=EnumValue (',' values+=EnumValue)*
+    '}';
+
+EnumValue:
+    name=ID ('=' value=STRING)?;
+
+Command:
+    'command' name=ID '{'
+        inputs+=CommandInput*
+    '}' '->' output=CommandOutputType;
+
+CommandInput:
+    name=ID ':' type=FieldType;
+
+CommandOutputType:
+    type=FieldType | void='void';
+
+Event:
+    'event' name=ID '{'
+        fields+=EventField*
+    '}';
+
+EventField:
+    name=ID ':' type=FieldType;
 
 QualifiedName returns string:
     ID ('.' ID)*;
@@ -39,3 +99,5 @@ terminal NUMBER returns number: /[0-9]+(\.[0-9]+)?/;
 terminal STRING: /"[^"\\]*(\\.[^"\\]*)*"/;
 
 hidden terminal WS: /\s+/;
+hidden terminal ML_COMMENT: /\/\*[\s\S]*?\*\//;
+hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;

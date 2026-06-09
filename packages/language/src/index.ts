@@ -1,7 +1,7 @@
 import { EmptyFileSystem } from 'langium';
 import { parseHelper } from 'langium/test';
 import { createForgeServices } from './forge-module.js';
-import type { Contract, Field, Invariant, Model } from './generated/ast.js';
+import type { Contract, Field, Invariant, Model, TypeReference, PrimitiveTypeRef, ComplexTypeRef, Enum, Command, Event } from './generated/ast.js';
 import { type ForgeDiagnostic, normalizeLangiumError, formatUriToPath, type ErrorKind } from './diagnostics/normalize.js';
 import { stabilizeDiagnostics, filterDiagnostics, MAX_ERRORS_PER_FILE, type StabilizedDiagnostic } from './diagnostics/stabilizer.js';
 
@@ -16,11 +16,16 @@ const primitiveTypes = new Set([
   'boolean',
   'uuid',
   'datetime',
-  'date'
+  'date',
+  'bytes',
+  'json'
 ]);
 
 export interface SemanticModel {
   contracts: ContractModel[];
+  enums?: EnumModel[];
+  commands?: CommandModel[];
+  events?: EventModel[];
 }
 
 export interface ContractModel {
@@ -29,16 +34,54 @@ export interface ContractModel {
   namespace: string;
   fields: FieldModel[];
   invariants: InvariantModel[];
+  modifiers?: Record<string, string[]>;
 }
 
 export interface FieldModel {
   name: string;
   type: string;
   optional: boolean;
+  modifiers?: Record<string, string>;
+  isArray?: boolean;
 }
 
 export interface InvariantModel {
   expression: string;
+  name?: string;
+}
+
+export interface EnumModel {
+  name: string;
+  namespace: string;
+  values: EnumValueModel[];
+}
+
+export interface EnumValueModel {
+  name: string;
+  value?: string;
+}
+
+export interface CommandModel {
+  name: string;
+  namespace: string;
+  inputs: CommandInputModel[];
+  outputType: string;
+}
+
+export interface CommandInputModel {
+  name: string;
+  type: string;
+}
+
+export interface EventModel {
+  name: string;
+  namespace: string;
+  fields: EventFieldModel[];
+}
+
+export interface EventFieldModel {
+  name: string;
+  type: string;
 }
 
 export interface ParseForgeOptions {
@@ -92,29 +135,101 @@ export function toSemanticModel(model: Model, fileUri?: string): SemanticModel {
   const names = new Set<string>();
   const diagnostics: ForgeDiagnostic[] = [];
 
-  const contracts = model.contracts.map(contract => {
-    validateContract(contract, names, diagnostics, fileUri);
+  const contracts: ContractModel[] = [];
+  const enums: EnumModel[] = [];
+  const commands: CommandModel[] = [];
+  const events: EventModel[] = [];
 
-    return {
-      id: createContractId(namespace, contract.name),
-      name: contract.name,
-      namespace,
-      fields: contract.members.filter(isField).map(field => ({
-        name: field.name,
-        type: field.type,
-        optional: Boolean(field.optional)
-      })),
-      invariants: contract.members.filter(isInvariant).map(invariant => ({
-        expression: `${invariant.left} ${invariant.operator} ${invariant.right}`
-      }))
-    };
-  });
-
-  if (diagnostics.length > 0) {
-    throw new DiagnosticsError(stabilizeDiagnostics(diagnostics));
+  // Extract contracts
+  for (const element of model.elements) {
+    if (isContract(element)) {
+      validateContract(element, names, diagnostics, fileUri);
+      contracts.push({
+        id: createContractId(namespace, element.name),
+        name: element.name,
+        namespace,
+        fields: element.members.filter(isField).map(field => ({
+          name: field.name,
+          type: getFieldTypeString(field.type),
+          optional: Boolean(field.optional || field.type?.optional),
+          isArray: Boolean(field.type?.arrayMarker),
+          modifiers: field.modifiers?.reduce((acc, mod) => {
+            if (mod.name) {
+              acc[mod.name] = mod.value ?? '';
+            }
+            return acc;
+          }, {} as Record<string, string>)
+        })),
+        invariants: element.members.filter(isInvariant).map(invariant => ({
+          expression: invariant.expression?.map(expr =>
+            `${expr.left} ${expr.operator} ${expr.right}`
+          ).join(' ') ?? '',
+          name: invariant.name
+        }))
+      });
+    } else if (isEnum(element)) {
+      enums.push({
+        name: element.name,
+        namespace,
+        values: element.values.map(v => ({
+          name: v.name,
+          value: v.value
+        }))
+      });
+    } else if (isCommand(element)) {
+      commands.push({
+        name: element.name,
+        namespace,
+        inputs: element.inputs.map(i => ({
+          name: i.name,
+          type: getFieldTypeString(i.type)
+        })),
+        outputType: element.output?.type ? getFieldTypeString(element.output.type) : 'void'
+      });
+    } else if (isEvent(element)) {
+      events.push({
+        name: element.name,
+        namespace,
+        fields: element.fields.map(f => ({
+          name: f.name,
+          type: getFieldTypeString(f.type)
+        }))
+      });
+    }
   }
 
-  return { contracts };
+  // Filter to only error-level diagnostics for throwing
+  const errors = diagnostics.filter(d => d.severity === 'error');
+
+  if (errors.length > 0) {
+    throw new DiagnosticsError(stabilizeDiagnostics(errors));
+  }
+
+  return {
+    contracts,
+    enums: enums.length > 0 ? enums : undefined,
+    commands: commands.length > 0 ? commands : undefined,
+    events: events.length > 0 ? events : undefined
+  };
+}
+
+function getFieldTypeString(type: any): string {
+  if (!type) return 'unknown';
+
+  const baseType = type.baseType;
+  if (!baseType) return 'unknown';
+
+  if (baseType.type) {
+    return baseType.type;
+  } else if (baseType.name) {
+    if (baseType.typeArgs && baseType.typeArgs.length > 0) {
+      const args = baseType.typeArgs.map((arg: any) => getFieldTypeString(arg)).join(', ');
+      return `${baseType.name}<${args}>`;
+    }
+    return baseType.name;
+  }
+
+  return 'unknown';
 }
 
 function getAstNodePosition(node: any) {
@@ -198,23 +313,16 @@ function validateContract(
       }
 
       // Unknown type
-      if (!primitiveTypes.has(member.type)) {
+      const typeString = getFieldTypeString(member.type);
+      if (!isPrimitiveOrCustomType(typeString)) {
         let pos = getAstNodePosition(member);
-        const typeNode = findTextInCst(member.$cstNode, member.type);
-        if (typeNode?.range) {
-          pos = {
-            line: typeNode.range.start.line + 1,
-            column: typeNode.range.start.character + 1
-          };
-        }
-
         diagnostics.push({
           code: 'FORGE_SEMANTIC_001',
           severity: 'error',
-          message: `Unknown type '${member.type}'.`,
+          message: `Unknown type '${typeString}'.`,
           file,
           ...pos,
-          hint: `Supported types:\n\n- string\n- int\n- float\n- decimal\n- boolean\n- uuid\n- datetime\n- date`
+          hint: `Supported primitive types:\n\n- string\n- int\n- float\n- decimal\n- boolean\n- uuid\n- datetime\n- date\n- bytes\n- json\n\nOr use a custom type that starts with an uppercase letter.`
         });
       }
     }
@@ -223,42 +331,25 @@ function validateContract(
   // 3. Invariants validation
   for (const member of contract.members) {
     if (isInvariant(member)) {
-      // Check left side (must be a valid field name in the contract)
-      if (!fieldNames.has(member.left)) {
-        let pos = getAstNodePosition(member);
-        const leftNode = findTextInCst(member.$cstNode, member.left);
-        if (leftNode?.range) {
-          pos = {
-            line: leftNode.range.start.line + 1,
-            column: leftNode.range.start.character + 1
-          };
+      for (const expr of member.expression) {
+        // Check left side (must be a valid field name in the contract or a literal)
+        const left = String(expr.left);
+        if (!fieldNames.has(left) && !isLiteral(left)) {
+          const pos = getAstNodePosition(member);
+          diagnostics.push({
+            code: 'FORGE_SEMANTIC_004',
+            severity: 'error',
+            message: `Invalid invariant reference '${left}' in contract '${contract.name}'.`,
+            file,
+            ...pos,
+            hint: `The field '${left}' does not exist in contract '${contract.name}'.`
+          });
         }
-        diagnostics.push({
-          code: 'FORGE_SEMANTIC_004',
-          severity: 'error',
-          message: `Invalid invariant reference '${member.left}' in contract '${contract.name}'.`,
-          file,
-          ...pos,
-          hint: `The field '${member.left}' does not exist in contract '${contract.name}'.`
-        });
-      }
 
-      // Check right side if it is an ID (and not a boolean or number)
-      const right = String(member.right);
-      const isStringLiteral = right.startsWith('"') && right.endsWith('"');
-      const isNumberLiteral = typeof member.right === 'number' || (!isNaN(Number(right)) && !isNaN(parseFloat(right)));
-      const isBooleanLiteral = right === 'true' || right === 'false';
-      
-      if (!isStringLiteral && !isNumberLiteral && !isBooleanLiteral && /^[a-zA-Z_]\w*$/.test(right)) {
-        if (!fieldNames.has(right)) {
-          let pos = getAstNodePosition(member);
-          const rightNode = findTextInCst(member.$cstNode, right);
-          if (rightNode?.range) {
-            pos = {
-              line: rightNode.range.start.line + 1,
-              column: rightNode.range.start.character + 1
-            };
-          }
+        // Check right side if it is an ID (and not a boolean or number)
+        const right = String(expr.right);
+        if (!isLiteral(right) && !fieldNames.has(right)) {
+          const pos = getAstNodePosition(member);
           diagnostics.push({
             code: 'FORGE_SEMANTIC_004',
             severity: 'error',
@@ -273,10 +364,52 @@ function validateContract(
   }
 }
 
-function isField(member: Contract['members'][number]): member is Field {
-  return member.$type === 'Field';
+function isLiteral(value: string): boolean {
+  const stringLiteral = value.startsWith('"') && value.endsWith('"');
+  const numberLiteral = !isNaN(Number(value)) && !isNaN(parseFloat(value));
+  const booleanLiteral = value === 'true' || value === 'false';
+  const nullLiteral = value === 'null';
+
+  return stringLiteral || numberLiteral || booleanLiteral || nullLiteral;
 }
 
-function isInvariant(member: Contract['members'][number]): member is Invariant {
-  return member.$type === 'Invariant';
+function isPrimitiveOrCustomType(type: string): boolean {
+  // Remove generic parameters for checking
+  const baseType = type.split('<')[0].trim();
+  // Remove array markers
+  const cleanType = baseType.replace(/\[\]$/, '');
+
+  // Check if it's a primitive type
+  if (primitiveTypes.has(cleanType)) {
+    return true;
+  }
+
+  // Check if it's a properly-capitalized custom type (like User, Role, Product)
+  // Custom types should start with uppercase letter
+  return /^[A-Z]/.test(cleanType);
+}
+
+// Type guards
+function isField(node: any): node is Field {
+  return node && 'name' in node && 'type' in node && !('operator' in node);
+}
+
+function isInvariant(node: any): node is Invariant {
+  return node && 'expression' in node;
+}
+
+function isContract(node: any): node is Contract {
+  return node && 'name' in node && 'members' in node;
+}
+
+function isEnum(node: any): node is Enum {
+  return node && 'values' in node;
+}
+
+function isCommand(node: any): node is Command {
+  return node && 'inputs' in node && 'output' in node;
+}
+
+function isEvent(node: any): node is Event {
+  return node && 'fields' in node && !('members' in node);
 }
