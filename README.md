@@ -1,272 +1,267 @@
-# Forge
+# Forge 1.0
 
 > Define contracts once. Generate everything.
 
-Forge is a contract-first language for defining data contracts and generating code artifacts from a single source of truth.
+Forge is a contract-first language and compiler for defining data models and generating complete backend applications.
 
-## Current Status
+Write business logic in Forge contracts, and automatically generate:
+- **Type-safe TypeScript types**
+- **Zod validation schemas**
+- **JSON Schema definitions**
+- **OpenAPI 3.0.3 documentation**
+- **Prisma database schemas**
+- **NestJS backend applications**
+- **TypeScript SDKs**
 
-Forge is currently in **v0.1.0**.
-
-Implemented:
-
-- Contract-first DSL
-- Namespace support
-- Contracts
-- Optional fields
-- Invariants
-- Langium-based parser
-- Semantic Model architecture
-- TypeScript generator
-- JSON Schema Draft 2020-12 generator
-- Zod generator
-- CLI tooling
-
-Planned:
-
-- OpenAPI generator
-- Improved diagnostics
-- VS Code extension
-
-## Installation
+## 🚀 Quick Start
 
 ```bash
-pnpm install
-pnpm build
+npm install -g @forge/cli
+forge init my-app
+cd my-app
+forge compile
 ```
 
-The generated Zod artifacts import `zod`, which is included as a project dependency.
+## 📋 Status: v1.0.0-rc.1
 
-## Usage
+Forge is in **Release Candidate** status. The core language, compiler, and generators are production-ready.
 
-Initialize a Forge project:
+### ✅ Implemented
 
-```bash
-pnpm forge init
-```
+- **Language**: Contract definitions, field types, modifiers (@primary, @unique, @internal, etc.), enums, invariants, commands, events
+- **Compiler**: Lexer, parser, semantic analyzer, type checker, comprehensive diagnostics
+- **Generators**: TypeScript, JSON Schema, Zod, OpenAPI 3.0.3, Prisma, NestJS, TypeScript SDK
+- **CLI**: init, compile, validate, doctor, clean (format and dev coming soon)
+- **Configuration**: forge.config.json with support for contracts and output paths
 
-Create contracts under:
+### 🔄 Work in Progress
 
-```text
-contracts/**/*.forge
-```
+- **VS Code Extension**: Syntax highlighting, diagnostics, code completion
+- **Watch Mode**: forge dev command
+- **Code Formatting**: forge format command
+- **TypeORM/Drizzle Generators**: Alternative ORM support
+- **Docker Support**: Dockerfile and docker-compose generation
 
-Compile all contracts:
+## 📝 Example
 
-```bash
-pnpm forge compile
-```
-
-Generated files are written to:
-
-```text
-generated/
-|-- typescript/
-|-- json-schema/
-`-- zod/
-```
-
-## Example
-
-### Input
+### Define Contracts
 
 ```forge
-namespace financeiro
+namespace users
 
-contract Usuario {
-    id: uuid
-    nome: string
-    email?: string
+/// A user account
+contract User {
+  /// Unique identifier
+  id: uuid @primary
 
-    invariant id != ""
+  /// Email address (unique)
+  email: string @unique @index
+
+  /// User's full name
+  name: string
+
+  /// Account status
+  status: enum { ACTIVE | SUSPENDED | DELETED } = ACTIVE
+
+  /// Creation timestamp
+  createdAt: datetime @default(now()) @readonly
+
+  invariant status != DELETED || email != ""
+}
+
+contract UserProfile {
+  id: uuid @primary
+  userId: uuid @foreign(User.id)
+  bio: string?
+  avatar: string?
+}
+
+enum Role {
+  ADMIN = "admin"
+  USER = "user"
+  GUEST = "guest"
 }
 ```
 
-### Generated TypeScript
+### Generate Everything
 
-```ts
-export interface Usuario {
-  id: string;
-  nome: string;
-  email?: string;
-}
+```bash
+forge compile
 ```
 
-### Generated JSON Schema
+Generates:
+```
+generated/
+├── typescript/
+│   ├── User.ts
+│   └── UserProfile.ts
+├── zod/
+│   ├── User.ts
+│   └── UserProfile.ts
+├── json-schema/
+│   ├── User.schema.json
+│   └── UserProfile.schema.json
+└── prisma/
+    └── schema.prisma
+```
+
+### Use Generated Code
+
+```typescript
+import { UserSchema } from './generated/zod/User';
+
+const user = UserSchema.parse({
+  id: 'uuid',
+  email: 'user@example.com',
+  name: 'John Doe',
+  status: 'ACTIVE',
+  createdAt: new Date().toISOString()
+});
+```
+
+## 🛠️ CLI Commands
+
+```bash
+forge init              # Initialize a new Forge project
+forge compile           # Compile contracts and generate artifacts
+forge validate          # Validate contracts without generating code
+forge doctor            # Diagnose project health
+forge clean             # Remove generated artifacts
+forge generate openapi  # Generate OpenAPI specification
+forge generate nest     # Generate NestJS backend project
+```
+
+## 🏗️ Project Structure
+
+After `forge init`, your project looks like:
+
+```
+my-app/
+├── contracts/           # Your Forge contract definitions
+│   ├── users/
+│   │   └── user.forge
+│   └── example.forge
+├── generated/           # Auto-generated code (do not edit)
+│   ├── typescript/
+│   ├── zod/
+│   ├── json-schema/
+│   └── prisma/
+├── dist/                # Distribution artifacts
+├── forge.config.json    # Project configuration
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+## 📖 Language Features
+
+### Types
+- `string`, `int`, `float`, `decimal`, `boolean`
+- `uuid`, `datetime`, `date`, `bytes`, `json`
+- Custom types (other contracts)
+- Optional fields with `?`
+- Array types with `[]`
+
+### Modifiers
+- `@primary` - Primary key
+- `@unique` - Unique constraint
+- `@index` - Create index
+- `@foreign(Contract.field)` - Foreign key
+- `@internal` - Hide from API
+- `@readonly` - Cannot be modified
+- `@default(value)` - Default value
+
+### Constraints
+- **Invariants**: Express business rules that must hold true
+- **Enumerations**: Define fixed sets of values
+- **Commands**: Define operations on contracts
+- **Events**: Define events that occur in the system
+
+## 🔌 Integration
+
+### TypeScript
+
+```typescript
+import { User } from './generated/typescript/User';
+import { UserSchema } from './generated/zod/User';
+
+const userData: User = { ... };
+UserSchema.parse(userData); // Validate
+```
+
+### API Documentation
 
 ```json
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Usuario",
-  "type": "object",
-  "properties": {
-    "id": {
-      "type": "string"
-    },
-    "nome": {
-      "type": "string"
-    },
-    "email": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "id",
-    "nome"
-  ]
+  "openapi": "3.0.3",
+  "info": { "title": "My API", "version": "1.0.0" },
+  "paths": {
+    "/users": { ... },
+    "/users/{id}": { ... }
+  }
 }
 ```
 
-### Generated Zod Schema
+### Database Schema
 
-```ts
-import { z } from "zod";
-
-export const UsuarioSchema = z.object({
-  id: z.string(),
-  nome: z.string(),
-  email: z.string().optional(),
-});
-
-export type Usuario = z.infer<typeof UsuarioSchema>;
-```
-
-## Language Overview
-
-### Namespace
-
-```forge
-namespace financeiro.pagamentos
-```
-
-### Contract
-
-```forge
-contract PedidoPago {
-    pedidoId: uuid
-    valor: decimal
+```prisma
+model User {
+  id    String   @id @default(uuid())
+  email String   @unique
+  name  String
+  status String  @default("ACTIVE")
+  createdAt DateTime @default(now())
 }
 ```
 
-### Optional Fields
+## 📚 Documentation
 
-```forge
-cupom?: string
-```
+- [Language Reference](./docs/LANGUAGE.md) - Complete language specification
+- [Getting Started](./docs/GETTING_STARTED.md) - Step-by-step guide
+- [Architecture](./docs/ARCHITECTURE.md) - System design and concepts
+- [Generator Configuration](./docs/GENERATORS.md) - Customizing code generation
 
-### Invariants
+## 🤝 Contributing
 
-```forge
-invariant valor > 0
-```
+Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
-Invariants are parsed and kept in the Semantic Model. Zod invariant validation is not generated yet.
+## 📄 License
 
-## Supported Types
+Apache License 2.0 - see [LICENSE](./LICENSE)
 
-| Forge Type | TypeScript | JSON Schema | Zod |
-|------------|------------|-------------|-----|
-| string | string | string | z.string() |
-| int | number | number | z.number().int() |
-| float | number | number | z.number() |
-| decimal | number | number | z.number() |
-| boolean | boolean | boolean | z.boolean() |
-| uuid | string | string | z.string() |
-| datetime | string | string | z.string() |
-| date | string | string | z.string() |
+## 🎯 Roadmap
 
-## Architecture
+### v1.0.0 (Planned)
+- Finalize all core features
+- Complete documentation
+- Release stable version
 
-Forge follows a layered architecture:
+### v1.1.0
+- Code formatting with `forge format`
+- Watch mode with `forge dev`
+- TypeORM and Drizzle generators
+- Improved diagnostics
 
-```text
-Forge Source
-     |
-Parser
-     |
-AST
-     |
-Semantic Model
-     |
-Generators
-     |
-Artifacts
-```
+### v1.2.0
+- VS Code extension
+- Advanced validation
+- Event handling framework
+- Migration generation
 
-Current generators:
+## 💡 FAQ
 
-- TypeScript
-- JSON Schema
-- Zod
+**Q: Can I use Forge with an existing database?**
+A: v1.0 focuses on code generation from contracts. Database reverse-engineering is planned for v1.2.
 
-Generators consume only the Semantic Model, making it possible to add new targets without changing the parser or language definition.
+**Q: How do I version my API?**
+A: Use multiple contract files or namespaces. The generated OpenAPI spec includes version info.
 
-## Monorepo Structure
+**Q: Can I extend generated code?**
+A: Yes! Generated code is clean and maintainable. Add custom business logic in separate files.
 
-```text
-packages/
-|-- cli/
-|-- generators/
-`-- language/
+## 📞 Support
 
-examples/
-```
+- GitHub Issues: [Report bugs](https://github.com/forge-lang/forge/issues)
+- GitHub Discussions: [Ask questions](https://github.com/forge-lang/forge/discussions)
+- Documentation: Full reference at [forge-lang.dev](https://forge-lang.dev)
 
-### packages/language
-
-Contains:
-
-- Langium grammar
-- Parser
-- AST access
-- Semantic Model
-- Validations
-- createContractId
-
-### packages/generators
-
-Contains:
-
-- TypeScript generator
-- JSON Schema generator
-- Zod generator
-
-### packages/cli
-
-Contains:
-
-- forge init
-- forge compile
-
-## Development
-
-Run all tests:
-
-```bash
-pnpm test
-```
-
-Build all packages:
-
-```bash
-pnpm build
-```
-
-## Roadmap
-
-### v0.2
-
-- Better diagnostics
-
-### v0.3
-
-- OpenAPI generation
-- Enhanced validation support
-
-### Future Exploration
-
-- Additional language targets
-
-## License
-
-[Apache License 2.0](https://github.com/dev-queiroz/forge/blob/main/LICENSE)
