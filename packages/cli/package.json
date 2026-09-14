@@ -9,13 +9,17 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "forge": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "forge": "node src/index.js",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@forge/compiler": "workspace:*",
     "@forge/generators": "workspace:*",
     "@forge/language": "workspace:*",
-    "@forge/compiler": "workspace:*",
     "fast-glob": "^3.3.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
   }
 }

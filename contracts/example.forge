@@ -1,0 +1,4 @@
+contract User {
+  id: uuid
+  name: string
+}

@@ -1,0 +1,14 @@
+namespace commerce
+
+enum CustomerTier {
+  standard
+  premium
+}
+
+contract Customer {
+  id: uuid @primary @default(uuid())
+  email: string @unique @index
+  tier: CustomerTier @default(standard)
+  profile: json?
+  avatar: bytes?
+}

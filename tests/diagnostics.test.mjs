@@ -17,8 +17,8 @@ describe('Diagnostics and Error Reporting', () => {
         (err) => {
           assert(err instanceof DiagnosticsError);
           const diag = err.diagnostics[0];
-          assert.equal(diag.code, 'FORGE_SYNTAX_001');
-          assert.match(diag.message, /Unexpected token/);
+          assert.equal(diag.code, 'FORGE_SYNTAX_002');
+          assert.match(diag.message, /Invalid syntax/);
           assert.equal(diag.file, 'contracts/usuario.forge');
           assert.equal(diag.line, 3);
           assert.equal(diag.column, 1);
@@ -60,8 +60,8 @@ describe('Diagnostics and Error Reporting', () => {
         (err) => {
           assert(err instanceof DiagnosticsError);
           const diag = err.diagnostics[0];
-          assert.equal(diag.code, 'FORGE_SYNTAX_001');
-          assert.match(diag.message, /Unexpected token/);
+          assert.equal(diag.code, 'FORGE_LEXER_001');
+          assert.match(diag.message, /Invalid character/);
           assert.equal(diag.file, 'contracts/usuario.forge');
           return true;
         }
@@ -107,7 +107,7 @@ describe('Diagnostics and Error Reporting', () => {
           assert.match(diag.message, /Unknown type 'money'/);
           assert.equal(diag.file, 'contracts/pedido.forge');
           assert.equal(diag.line, 2);
-          assert.equal(diag.column, 12);
+          assert.equal(diag.column, 5);
           assert(diag.hint.includes('Supported primitive types:'));
           return true;
         }
@@ -157,6 +157,8 @@ contract Usuario {
           assert.equal(diag.file, 'contracts/usuario.forge');
           assert.equal(diag.line, 3);
           assert.equal(diag.column, 5);
+          assert.equal(diag.sourceLine.trim(), 'id: string');
+          assert.match(diag.underline, /\^/);
           assert.equal(diag.hint, 'Rename the field or remove the duplicate declaration.');
           return true;
         }

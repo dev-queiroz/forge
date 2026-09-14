@@ -6,7 +6,7 @@ entry Model:
     elements+=ModelElement*;
 
 ImportDeclaration:
-    'import' importedNamespace=QualifiedName ('.' '{' names+=ID (',' names+=ID)* '}')?;
+    'import' (names+=ID (',' names+=ID)* 'from' path=STRING | importedNamespace=QualifiedName ('.' '{' names+=ID (',' names+=ID)* '}')?);
 
 NamespaceDeclaration:
     'namespace' name=QualifiedName;
@@ -26,7 +26,10 @@ Field:
     name=ID optional=('?')? ':' type=FieldType modifiers+=FieldModifier*;
 
 FieldModifier:
-    '@' name=ID ('(' value=STRING ')')?;
+    '@' name=ID ('(' value=ModifierValue ')')?;
+
+ModifierValue returns string:
+    STRING | NUMBER | BOOLEAN | FUNCTION | ID ('.' ID)?;
 
 FieldType:
     baseType=TypeReference arrayMarker=('[]')? optional=('?')?;
@@ -49,10 +52,22 @@ Invariant:
     '}' | 'invariant' expression+=InvariantExpression;
 
 InvariantExpression:
-    left=InvariantValue operator=ComparisonOperator right=InvariantValue;
+    left=InvariantTerm operator=ComparisonOperator right=InvariantTerm (logicalOperators+=LogicalOperator additional+=InvariantComparison)*;
+
+InvariantComparison:
+    left=InvariantTerm operator=ComparisonOperator right=InvariantTerm;
+
+InvariantTerm:
+    values+=InvariantValue (operators+=ArithmeticOperator values+=InvariantValue)*;
 
 InvariantValue returns string:
     ID | STRING | NUMBER | BOOLEAN;
+
+ArithmeticOperator returns string:
+    '*' | '/' | '+' | '-';
+
+LogicalOperator returns string:
+    '&&' | '||';
 
 ComparisonOperator returns string:
     '==' | '!=' | '>' | '<' | '>=' | '<=';
@@ -65,7 +80,7 @@ RelationType returns string:
 
 Enum:
     'enum' name=ID '{'
-        values+=EnumValue (',' values+=EnumValue)*
+        values+=EnumValue (','? values+=EnumValue)* ','?
     '}';
 
 EnumValue:
@@ -94,6 +109,7 @@ QualifiedName returns string:
     ID ('.' ID)*;
 
 terminal BOOLEAN returns string: /true|false/;
+terminal FUNCTION returns string: /[_a-zA-Z][\w]*\(\)/;
 terminal ID: /[_a-zA-Z][\w]*/;
 terminal NUMBER returns number: /[0-9]+(\.[0-9]+)?/;
 terminal STRING: /"[^"\\]*(\\.[^"\\]*)*"/;

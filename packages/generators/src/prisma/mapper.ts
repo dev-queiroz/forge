@@ -9,7 +9,11 @@ export function mapFieldTypeToPrisma(type: DatabaseFieldType): string {
     boolean: 'Boolean',
     uuid: 'String',
     datetime: 'DateTime',
-    date: 'DateTime'
+    date: 'DateTime',
+    bytes: 'Bytes',
+    json: 'Json',
+    enum: 'String',
+    relation: 'String'
   };
 
   return typeMap[type] ?? 'String';

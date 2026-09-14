@@ -1,0 +1,25 @@
+namespace commerce
+
+enum ProductStatus {
+  draft
+  active
+  archived
+}
+
+contract Product {
+  sku: string @primary
+  name: string
+  price: decimal
+  stock: int
+  tags: string[]
+  images: bytes[]
+  metadata: json?
+  status: ProductStatus @default(active)
+  discontinued: boolean @default(false)
+  createdAt: datetime @default(now()) @readonly
+
+  invariant name != ""
+  invariant price > 0 && stock >= 0
+  invariant discontinued == true || stock > 0
+  invariant price * stock > 100
+}

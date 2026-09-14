@@ -1,267 +1,181 @@
-# Forge 1.0
+# Forge
 
-> Define contracts once. Generate everything.
+Define your backend once. Forge builds the rest.
 
-Forge is a contract-first language and compiler for defining data models and generating complete backend applications.
-
-Write business logic in Forge contracts, and automatically generate:
-- **Type-safe TypeScript types**
-- **Zod validation schemas**
-- **JSON Schema definitions**
-- **OpenAPI 3.0.3 documentation**
-- **Prisma database schemas**
-- **NestJS backend applications**
-- **TypeScript SDKs**
-
-## 🚀 Quick Start
-
-```bash
-npm install -g @forge/cli
-forge init my-app
-cd my-app
-forge compile
-```
-
-## 📋 Status: v1.0.0
-
-Forge 1.0.0 is the **stable release** with production-ready language, compiler, and code generators. All core features are complete and tested.
-
-### ✅ Implemented
-
-- **Language**: Contract definitions, field types, modifiers (@primary, @unique, @internal, etc.), enums, invariants, commands, events
-- **Compiler**: Lexer, parser, semantic analyzer, type checker, comprehensive diagnostics
-- **Generators**: TypeScript, JSON Schema, Zod, OpenAPI 3.0.3, Prisma, NestJS, TypeScript SDK
-- **CLI**: init, compile, validate, doctor, clean (format and dev coming soon)
-- **Configuration**: forge.config.json with support for contracts and output paths
-
-### 🔄 Work in Progress
-
-- **VS Code Extension**: Syntax highlighting, diagnostics, code completion
-- **Watch Mode**: forge dev command
-- **Code Formatting**: forge format command
-- **TypeORM/Drizzle Generators**: Alternative ORM support
-- **Docker Support**: Dockerfile and docker-compose generation
-
-## 📝 Example
-
-### Define Contracts
+Forge is a contract-first backend compiler for TypeScript. A `.forge` file is the canonical source of truth for your domain model, runtime validation, JSON Schema, OpenAPI contracts, Prisma schema, and generated NestJS backend scaffolding.
 
 ```forge
-namespace users
+namespace commerce
 
-/// A user account
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+}
+
+contract Order {
+  id: uuid @primary @default(uuid())
+  customerId: uuid
+  total: decimal
+  status: OrderStatus @default(pending)
+  paid: boolean @default(false)
+
+  invariant total > 0
+  invariant paid == true || status != "cancelled"
+}
+```
+
+The design principle is simple:
+
+```text
+one contract -> one semantic model -> consistent generated artifacts
+```
+
+## Status
+
+Forge `1.0.0` is the first stable release. The core compiler path is in place: semantic imports, invariants, generators, Prisma Migrate integration, client SDK generation, drift detection, watch mode, formatter, Prisma/Nest E2E coverage and CLI diagnostics.
+
+Forge uses Prisma Migrate for database migrations. Forge does not yet generate authentication, authorization policies or production deployment manifests. Generated Nest projects are intentionally compact scaffolds that you can extend.
+
+## Quick Start
+
+```bash
+pnpm install
+pnpm build
+node packages/cli/dist/index.js init
+node packages/cli/dist/index.js compile
+```
+
+Compile selected targets:
+
+```bash
+node packages/cli/dist/index.js compile --target typescript,zod,json-schema,prisma,openapi,nest
+```
+
+## Generated Targets
+
+Forge currently generates:
+
+- TypeScript interfaces and enum constants
+- Zod schemas, including defaults and invariant refinements with arithmetic and `&&` / `||`
+- JSON Schema documents
+- Prisma schema with primary keys, unique fields, indexes, defaults, enums and relation fields
+- OpenAPI 3.0.3 schemas and CRUD paths
+- NestJS modules, controllers, DTOs, services, PrismaService and Zod request validation
+- Fetch-based TypeScript client SDK
+
+## Language Snapshot
+
+```forge
+namespace blog
+
+enum PostStatus {
+  draft
+  published
+}
+
 contract User {
-  /// Unique identifier
-  id: uuid @primary
-
-  /// Email address (unique)
+  id: uuid @primary @default(uuid())
   email: string @unique @index
-
-  /// User's full name
-  name: string
-
-  /// Account status
-  status: enum { ACTIVE | SUSPENDED | DELETED } = ACTIVE
-
-  /// Creation timestamp
-  createdAt: datetime @default(now()) @readonly
-
-  invariant status != DELETED || email != ""
+  posts: Post[]
 }
 
-contract UserProfile {
+contract Post {
   id: uuid @primary
-  userId: uuid @foreign(User.id)
-  bio: string?
-  avatar: string?
-}
+  authorId: uuid
+  author: User @foreign(authorId)
+  title: string
+  tags: string[]
+  status: PostStatus @default(draft)
 
-enum Role {
-  ADMIN = "admin"
-  USER = "user"
-  GUEST = "guest"
+  invariant title != ""
 }
 ```
 
-### Generate Everything
+Supported primitive types:
+
+```text
+string, int, float, decimal, boolean, uuid, datetime, date, bytes, json
+```
+
+Supported modifiers:
+
+```text
+@primary, @unique, @index, @default(...), @foreign(...), @readonly, @optional
+```
+
+## CLI
 
 ```bash
+forge init
+forge validate
+forge check
 forge compile
+forge compile --target typescript,zod,prisma,client
+forge generate openapi
+forge generate nest
+forge generate client
+forge doctor
+forge diff
+forge migrate dev --name init
+forge migrate deploy
+forge format
+forge format contracts/**/*.forge
+forge dev
+forge clean
 ```
 
-Generates:
-```
-generated/
-├── typescript/
-│   ├── User.ts
-│   └── UserProfile.ts
-├── zod/
-│   ├── User.ts
-│   └── UserProfile.ts
-├── json-schema/
-│   ├── User.schema.json
-│   └── UserProfile.schema.json
-└── prisma/
-    └── schema.prisma
-```
+`forge check` is intended for CI. It validates syntax, semantics, references, configuration and target compatibility before generation.
 
-### Use Generated Code
+`forge format` formats configured contracts, or only the explicit files/globs passed after the command.
 
-```typescript
-import { UserSchema } from './generated/zod/User';
+`forge migrate` first regenerates `generated/prisma/schema.prisma`, then delegates to Prisma Migrate. Use `forge migrate dev --name init` locally and `forge migrate deploy` in deployment environments.
 
-const user = UserSchema.parse({
-  id: 'uuid',
-  email: 'user@example.com',
-  name: 'John Doe',
-  status: 'ACTIVE',
-  createdAt: new Date().toISOString()
-});
-```
+`forge dev` performs an initial compile, then watches `.forge` files and `forge.config.json` for recompilation without exiting on compile errors.
 
-## 🛠️ CLI Commands
+## Configuration
 
-```bash
-forge init              # Initialize a new Forge project
-forge compile           # Compile contracts and generate artifacts
-forge validate          # Validate contracts without generating code
-forge doctor            # Diagnose project health
-forge clean             # Remove generated artifacts
-forge generate openapi  # Generate OpenAPI specification
-forge generate nest     # Generate NestJS backend project
-```
-
-## 🏗️ Project Structure
-
-After `forge init`, your project looks like:
-
-```
-my-app/
-├── contracts/           # Your Forge contract definitions
-│   ├── users/
-│   │   └── user.forge
-│   └── example.forge
-├── generated/           # Auto-generated code (do not edit)
-│   ├── typescript/
-│   ├── zod/
-│   ├── json-schema/
-│   └── prisma/
-├── dist/                # Distribution artifacts
-├── forge.config.json    # Project configuration
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## 📖 Language Features
-
-### Types
-- `string`, `int`, `float`, `decimal`, `boolean`
-- `uuid`, `datetime`, `date`, `bytes`, `json`
-- Custom types (other contracts)
-- Optional fields with `?`
-- Array types with `[]`
-
-### Modifiers
-- `@primary` - Primary key
-- `@unique` - Unique constraint
-- `@index` - Create index
-- `@foreign(Contract.field)` - Foreign key
-- `@internal` - Hide from API
-- `@readonly` - Cannot be modified
-- `@default(value)` - Default value
-
-### Constraints
-- **Invariants**: Express business rules that must hold true
-- **Enumerations**: Define fixed sets of values
-- **Commands**: Define operations on contracts
-- **Events**: Define events that occur in the system
-
-## 🔌 Integration
-
-### TypeScript
-
-```typescript
-import { User } from './generated/typescript/User';
-import { UserSchema } from './generated/zod/User';
-
-const userData: User = { ... };
-UserSchema.parse(userData); // Validate
-```
-
-### API Documentation
+`forge.config.json`:
 
 ```json
 {
-  "openapi": "3.0.3",
-  "info": { "title": "My API", "version": "1.0.0" },
-  "paths": {
-    "/users": { ... },
-    "/users/{id}": { ... }
-  }
+  "contracts": "contracts/**/*.forge",
+  "output": "generated",
+  "targets": ["typescript", "zod", "json-schema", "prisma"]
 }
 ```
 
-### Database Schema
+## Repository Layout
 
-```prisma
-model User {
-  id    String   @id @default(uuid())
-  email String   @unique
-  name  String
-  status String  @default("ACTIVE")
-  createdAt DateTime @default(now())
-}
+```text
+packages/
+  language/    Langium grammar, parser boundary, semantic model, diagnostics
+  compiler/    intermediate representations such as database schema
+  generators/  TypeScript, Zod, JSON Schema, Prisma, OpenAPI and NestJS generators
+  cli/         command-line interface
+tests/         parser, semantic, generator and CLI tests
+examples/      sample Forge contracts
+docs/          language, architecture and target documentation
 ```
 
-## 📚 Documentation
+## Development
 
-- [Language Reference](./docs/LANGUAGE.md) - Complete language specification
-- [Getting Started](./docs/GETTING_STARTED.md) - Step-by-step guide
-- [Architecture](./docs/ARCHITECTURE.md) - System design and concepts
-- [Generator Configuration](./docs/GENERATORS.md) - Customizing code generation
+```bash
+pnpm build
+pnpm test
+```
 
-## 🤝 Contributing
+The full test suite compiles the monorepo and runs Node's built-in test runner.
 
-Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+## Documentation
 
-## 📄 License
+- [Architecture](./docs/architecture.md)
+- [Language](./docs/language.md)
+- [Generators](./docs/generators.md)
+- [CLI](./docs/cli.md)
+- [Changelog](./CHANGELOG.md)
+- [Recipe: Simple CRUD](./docs/recipes/crud-simple.md)
+- [Recipe: Multi-File Relations And Invariants](./docs/recipes/multi-file-relations-invariants.md)
+- [Recipe: Advanced Types, Defaults And Custom Primary Keys](./docs/recipes/advanced-types-defaults-primary.md)
 
-Apache License 2.0 - see [LICENSE](./LICENSE)
-
-## 🎯 Roadmap
-
-### v1.0.0 (Planned)
-- Finalize all core features
-- Complete documentation
-- Release stable version
-
-### v1.1.0
-- Code formatting with `forge format`
-- Watch mode with `forge dev`
-- TypeORM and Drizzle generators
-- Improved diagnostics
-
-### v1.2.0
-- VS Code extension
-- Advanced validation
-- Event handling framework
-- Migration generation
-
-## 💡 FAQ
-
-**Q: Can I use Forge with an existing database?**
-A: v1.0 focuses on code generation from contracts. Database reverse-engineering is planned for v1.2.
-
-**Q: How do I version my API?**
-A: Use multiple contract files or namespaces. The generated OpenAPI spec includes version info.
-
-**Q: Can I extend generated code?**
-A: Yes! Generated code is clean and maintainable. Add custom business logic in separate files.
-
-## 📞 Support
-
-- GitHub Issues: [Report bugs](https://github.com/forge-lang/forge/issues)
-- GitHub Discussions: [Ask questions](https://github.com/forge-lang/forge/discussions)
-- Documentation: Full reference at [forge-lang.dev](https://forge-lang.dev)
-
+Forge's goal is not to be a template engine. It is a compiler: source is parsed once, resolved once, represented semantically once, and every artifact is generated from that shared meaning.

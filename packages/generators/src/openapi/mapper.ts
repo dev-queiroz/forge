@@ -1,7 +1,7 @@
 import type { FieldModel } from '@forge/language';
 
 export interface OpenApiProperty {
-  type: string;
+  type?: string;
   format?: string;
 }
 
@@ -22,6 +22,10 @@ export function mapFieldTypeToOpenApi(type: string): OpenApiProperty {
       return { type: 'string', format: 'date' };
     case 'datetime':
       return { type: 'string', format: 'date-time' };
+    case 'bytes':
+      return { type: 'string', format: 'byte' };
+    case 'json':
+      return {};
     default:
       return { type: 'string' };
   }

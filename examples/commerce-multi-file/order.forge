@@ -1,0 +1,27 @@
+import Customer from "./customer.forge"
+import Product, ProductStatus from "./product.forge"
+
+namespace commerce
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+}
+
+contract Order {
+  id: uuid @primary @default(uuid())
+  customerId: uuid
+  customer: Customer @foreign(customerId)
+  productSku: string
+  product: Product @foreign(productSku)
+  quantity: int @default(1)
+  statuses: ProductStatus[]
+  status: OrderStatus @default(pending)
+  notes: string?
+  audit: json?
+  total: decimal
+
+  invariant quantity > 0
+  invariant total > 0
+}

@@ -1,0 +1,25 @@
+namespace commerce
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+}
+
+contract Customer {
+  id: uuid @primary @default(uuid())
+  email: string @unique @index
+  name: string
+  orders: Order[]
+}
+
+contract Order {
+  id: uuid @primary @default(uuid())
+  customerId: uuid
+  customer: Customer @foreign(customerId)
+  total: decimal
+  status: OrderStatus @default(pending)
+  createdAt: datetime @default(now()) @readonly
+
+  invariant total > 0
+}

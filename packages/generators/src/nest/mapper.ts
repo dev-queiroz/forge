@@ -12,6 +12,10 @@ export function mapForgeTypeToTs(type: string): string {
     case 'date':
     case 'datetime':
       return 'Date';
+    case 'bytes':
+      return 'Buffer';
+    case 'json':
+      return 'unknown';
     default:
       return 'any';
   }

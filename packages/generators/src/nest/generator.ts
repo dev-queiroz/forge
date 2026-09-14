@@ -1,8 +1,11 @@
 import type { SemanticModel } from '@forge/language';
+import { DatabaseSchemaBuilder } from '@forge/compiler';
 import { renderModule } from './templates/module.template.js';
 import { renderController } from './templates/controller.template.js';
 import { renderService } from './templates/service.template.js';
 import { renderUserDto, renderCreateDto, renderUpdateDto } from './templates/dto.template.js';
+import { renderPrismaExceptionFilter, renderValidationSchemas, renderZodValidationPipe } from './templates/validation.template.js';
+import { generatePrisma } from '../prisma/generator.js';
 
 export interface GeneratedFile {
   path: string;
@@ -43,16 +46,20 @@ export function generateNest(model: SemanticModel): GeneratedFile[] {
       content: renderModule(name, kebabPlural, pascalPlural)
     });
 
+    const primaryField = contract.fields.find(field => field.primary)
+      ?? contract.fields.find(field => field.name === 'id')
+      ?? contract.fields[0];
+
     // Controller
     files.push({
       path: `${dir}/${kebabPlural}.controller.ts`,
-      content: renderController(name, kebabPlural, pascalPlural, camelPlural)
+      content: renderController(name, kebabPlural, pascalPlural, camelPlural, primaryField)
     });
 
     // Service
     files.push({
       path: `${dir}/${kebabPlural}.service.ts`,
-      content: renderService(name, kebabPlural, pascalPlural, camelPlural)
+      content: renderService(name, kebabPlural, pascalPlural, camelPlural, primaryField, contract.fields)
     });
 
     // DTOs
@@ -69,6 +76,11 @@ export function generateNest(model: SemanticModel): GeneratedFile[] {
     files.push({
       path: `${dir}/dto/update-${kebabSingular}.dto.ts`,
       content: renderUpdateDto(name)
+    });
+
+    files.push({
+      path: `${dir}/dto/${kebabSingular}.schema.ts`,
+      content: renderValidationSchemas(contract)
     });
   }
 
@@ -92,12 +104,42 @@ export class AppModule {}
     content: appModuleContent
   });
 
+  files.push({
+    path: 'src/common/prisma/prisma.service.ts',
+    content: `import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  async onModuleInit() {
+    await this.$connect();
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
+`
+  });
+
+  files.push({
+    path: 'src/common/validation/zod-validation.pipe.ts',
+    content: renderZodValidationPipe()
+  });
+
+  files.push({
+    path: 'src/common/filters/prisma-exception.filter.ts',
+    content: renderPrismaExceptionFilter()
+  });
+
   // 3. Generate root main.ts
   const mainContent = `import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new PrismaExceptionFilter());
   await app.listen(3000);
 }
 bootstrap();
@@ -123,8 +165,10 @@ bootstrap();
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
@@ -149,15 +193,18 @@ bootstrap();
     "start": "nest start"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/mapped-types": "*",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@types/node": "^20.3.1",
+    "prisma": "^5.22.0",
     "typescript": "^5.1.3"
   }
 }
@@ -167,6 +214,9 @@ bootstrap();
     path: 'package.json',
     content: packageContent
   });
+
+  const prismaSchema = new DatabaseSchemaBuilder().build(model);
+  files.push(...generatePrisma(prismaSchema));
 
   return files;
 }

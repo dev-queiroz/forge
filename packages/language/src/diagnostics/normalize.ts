@@ -9,6 +9,8 @@ export interface ForgeDiagnostic {
   file?: string;
   line?: number;
   column?: number;
+  sourceLine?: string;
+  underline?: string;
   hint?: string;
   severity?: "error" | "warning";
   kind?: ErrorKind;
